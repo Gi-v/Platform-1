@@ -1,0 +1,12 @@
+{
+  "name": "platform-one-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Platform One IDP Portal - zero-dependency Node.js server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev":   "node server.js"
+  },
+  "dependencies": {}
+}

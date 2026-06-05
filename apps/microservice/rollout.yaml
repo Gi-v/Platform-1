@@ -1,0 +1,217 @@
+# Argo Rollouts canary deployment for microservice.
+# REPLACES the standard Deployment (do not deploy both).
+# Requires: argo-rollouts controller, ingress-nginx
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: microservice
+  namespace: microservice
+  labels:
+    app.kubernetes.io/name: microservice
+    team: platform
+    cost-center: eng-001
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: microservice
+  template:
+    metadata:
+      labels:
+        app: microservice
+        app.kubernetes.io/name: microservice
+        team: platform
+        cost-center: eng-001
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: microservice
+          image: ghcr.io/Gi-v/platform-one/microservice:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: PORT
+              value: "8080"
+            - name: SERVICE_NAME
+              value: "microservice"
+  strategy:
+    canary:
+      canaryService: microservice-canary
+      stableService: microservice-stable
+      trafficRouting:
+        nginx:
+          stableIngress: microservice-stable-ingress
+      steps:
+        - setWeight: 10
+        - pause: {duration: 2m}
+        - analysis:
+            templates:
+              - templateName: success-rate
+            args:
+              - name: service-name
+                value: microservice-canary
+        - setWeight: 30
+        - pause: {duration: 5m}
+        - analysis:
+            templates:
+              - templateName: success-rate
+              - templateName: latency-p99
+            args:
+              - name: service-name
+                value: microservice-canary
+        - setWeight: 60
+        - pause: {duration: 5m}
+        - setWeight: 100
+---
+# Stable service (receives production traffic)
+apiVersion: v1
+kind: Service
+metadata:
+  name: microservice-stable
+  namespace: microservice
+  labels:
+    app.kubernetes.io/name: microservice
+spec:
+  selector:
+    app: microservice
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+---
+# Canary service (receives canary traffic slice)
+apiVersion: v1
+kind: Service
+metadata:
+  name: microservice-canary
+  namespace: microservice
+  labels:
+    app.kubernetes.io/name: microservice
+spec:
+  selector:
+    app: microservice
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+---
+# Stable ingress (Argo Rollouts manipulates nginx annotations on this)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservice-stable-ingress
+  namespace: microservice
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /api/microservice
+            pathType: Prefix
+            backend:
+              service:
+                name: microservice-stable
+                port:
+                  number: 80
+---
+# Canary ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservice-canary-ingress
+  namespace: microservice
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /api/microservice
+            pathType: Prefix
+            backend:
+              service:
+                name: microservice-canary
+                port:
+                  number: 80
+---
+# Prometheus AnalysisTemplate - success rate
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: microservice
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      interval: 1m
+      count: 3
+      successCondition: result[0] >= 0.95
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://kube-prometheus-kube-prome-prometheus.monitoring.svc:9090
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status!~"5.."}[2m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[2m]))
+---
+# Prometheus AnalysisTemplate - p99 latency
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency-p99
+  namespace: microservice
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: latency-p99
+      interval: 1m
+      count: 3
+      successCondition: result[0] <= 0.5
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://kube-prometheus-kube-prome-prometheus.monitoring.svc:9090
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}"}[2m]))
+              by (le))

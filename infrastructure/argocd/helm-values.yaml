@@ -1,0 +1,53 @@
+global:
+  domain: localhost
+
+configs:
+  params:
+    server.insecure: true          # no TLS in local dev
+  cm:
+    url: "http://localhost:8080"
+    application.resourceTrackingMethod: annotation
+  rbac:
+    policy.default: role:admin     # open for local dev
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - localhost
+    paths:
+      - /argocd
+    pathType: Prefix
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$2
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+
+  extraArgs:
+    - --rootpath=/argocd
+
+repoServer:
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+controller:
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+redis:
+  resources:
+    limits:
+      memory: 128Mi
+
+applicationSet:
+  resources:
+    limits:
+      memory: 128Mi

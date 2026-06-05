@@ -1,0 +1,16 @@
+# ── Build stage ───────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --silent
+COPY . .
+RUN npm run build
+
+# ── Serve stage ───────────────────────────────────────────────────────────────
+FROM nginx:1.27-alpine
+# Drop default config, use ours (listens on 8080, non-root compatible)
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]

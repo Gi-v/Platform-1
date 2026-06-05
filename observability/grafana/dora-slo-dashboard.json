@@ -1,0 +1,119 @@
+{
+  "title": "DORA Metrics + SLO Burn Rate",
+  "uid": "platform-dora-slo",
+  "tags": ["platform", "dora", "slo"],
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(kube_namespace_labels, namespace)"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Deployment Frequency (deploys/day)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(increase(argocd_app_sync_total{namespace=\"$namespace\",phase=\"Succeeded\"}[24h]))",
+        "legendFormat": "deploys/day"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Lead Time for Changes (hours)",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg(cicd_pipeline_duration_seconds{namespace=\"$namespace\"}) / 3600",
+        "legendFormat": "avg lead time (h)"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Change Failure Rate (%)",
+      "type": "stat",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "100 * sum(increase(argocd_app_sync_total{namespace=\"$namespace\",phase=\"Failed\"}[7d])) / sum(increase(argocd_app_sync_total{namespace=\"$namespace\"}[7d]))",
+        "legendFormat": "failure rate %"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "MTTR (hours)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg(increase(incident_resolution_duration_seconds_sum[7d]) / increase(incident_resolution_duration_seconds_count[7d])) / 3600",
+        "legendFormat": "MTTR (h)"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "SLO Error Budget Burn Rate (1h vs 6h)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(rate(http_requests_total{namespace=\"$namespace\",status=~\"5..\"}[1h])) / sum(rate(http_requests_total{namespace=\"$namespace\"}[1h]))",
+          "legendFormat": "error rate 1h"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(rate(http_requests_total{namespace=\"$namespace\",status=~\"5..\"}[6h])) / sum(rate(http_requests_total{namespace=\"$namespace\"}[6h]))",
+          "legendFormat": "error rate 6h"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "vector(0.001)",
+          "legendFormat": "SLO budget threshold (99.9%)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "p99 Latency by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"$namespace\"}[5m])) by (le, service))",
+        "legendFormat": "{{service}} p99"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "Active Canary Rollouts",
+      "type": "table",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "rollout_phase{namespace=\"$namespace\"}",
+        "legendFormat": "{{rollout}}"
+      }]
+    }
+  ]
+}

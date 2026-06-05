@@ -1,0 +1,51 @@
+grafana:
+  enabled: true
+  adminPassword: prom-operator
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts: ["localhost"]
+    paths: ["/grafana"]
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  "grafana.ini":
+    server:
+      root_url: "%(protocol)s://%(domain)s/grafana"
+      serve_from_sub_path: true
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://kube-prometheus-kube-prome-prometheus.monitoring.svc:9090
+          isDefault: true
+        - name: Loki
+          type: loki
+          url: http://loki.monitoring.svc:3100
+        - name: Tempo
+          type: tempo
+          url: http://tempo.monitoring.svc:3100
+
+prometheus:
+  prometheusSpec:
+    resources:
+      limits:
+        memory: 1Gi
+      requests:
+        memory: 512Mi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 5Gi
+
+alertmanager:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true

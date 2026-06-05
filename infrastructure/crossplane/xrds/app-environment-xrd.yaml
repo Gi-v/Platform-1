@@ -1,0 +1,43 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xappenvironments.platform.example.com
+spec:
+  group: platform.example.com
+  names:
+    kind: XAppEnvironment
+    plural: xappenvironments
+  claimNames:
+    kind: AppEnvironment
+    plural: appenvironments
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  required: [appName, environment, team]
+                  properties:
+                    appName:
+                      type: string
+                    environment:
+                      type: string
+                      enum: [dev, staging, prod]
+                    team:
+                      type: string
+                    dbInstanceClass:
+                      type: string
+                      default: db.t3.micro
+                    enableCache:
+                      type: boolean
+                      default: false
+                    region:
+                      type: string
+                      default: us-east-1

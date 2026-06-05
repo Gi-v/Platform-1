@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Platform One — IDP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090e;--bg1:#0d1117;--bg2:#161b22;--bg3:#21262d;
+  --bd:#30363d;--bd2:#484f58;
+  --tx:#e6edf3;--tx2:#8b949e;--tx3:#6e7681;
+  --green:#3fb950;--blue:#58a6ff;--orange:#f0883e;
+  --red:#f85149;--yellow:#d29922;--purple:#bc8cff;
+  --green-dim:rgba(63,185,80,.12);--blue-dim:rgba(88,166,255,.12);
+  --orange-dim:rgba(240,136,62,.12);--red-dim:rgba(248,81,73,.12);
+  --yellow-dim:rgba(210,153,34,.12);
+  --font-mono:'IBM Plex Mono',monospace;
+  --font-sans:'IBM Plex Sans',sans-serif;
+  --r:6px;--r2:10px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:var(--font-mono);font-size:13px;line-height:1.6;overflow-x:hidden}
+
+/* grid bg */
+body::after{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:32px 32px;pointer-events:none}
+
+/* ── Header ── */
+header{position:sticky;top:0;z-index:100;background:rgba(7,9,14,.88);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--bd);height:52px;display:flex;align-items:center;padding:0 20px;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);font-weight:600;font-size:15px;font-family:var(--font-sans);letter-spacing:-.3px}
+.logo-box{width:26px;height:26px;background:var(--green);border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#000;letter-spacing:-1px;font-family:var(--font-mono)}
+.logo span{color:var(--tx2)}
+nav{flex:1;display:flex;gap:2px}
+nav a{padding:0 12px;height:52px;display:flex;align-items:center;color:var(--tx2);text-decoration:none;font-size:12px;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap;font-family:var(--font-sans)}
+nav a:hover,nav a.active{color:var(--tx);border-bottom-color:var(--green)}
+.h-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.cluster-pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid rgba(63,185,80,.3);border-radius:4px;font-size:11px;color:var(--green);background:var(--green-dim)}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn-sm{padding:5px 12px;border:1px solid var(--bd2);border-radius:5px;background:var(--bg2);color:var(--tx);font-family:var(--font-mono);font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap}
+.btn-sm:hover{border-color:var(--green);color:var(--green)}
+.btn-primary{background:var(--green);color:#000;border-color:var(--green);font-weight:600}
+.btn-primary:hover{background:#52d46a;color:#000;border-color:#52d46a}
+
+/* ── Hero ── */
+.hero{padding:40px 24px 28px;position:relative;z-index:1;border-bottom:1px solid var(--bd)}
+.hero-tag{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.hero-tag::before{content:'';width:20px;height:1px;background:var(--green)}
+.hero h1{font-family:var(--font-sans);font-weight:700;font-size:clamp(1.8rem,4vw,3rem);color:var(--tx);letter-spacing:-1.5px;line-height:1.1;margin-bottom:10px}
+.hero h1 em{font-style:normal;color:var(--green)}
+.hero-sub{color:var(--tx2);font-family:var(--font-sans);font-size:14px;max-width:540px;margin-bottom:20px;line-height:1.7}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── Stats bar ── */
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;background:var(--bd);border-bottom:1px solid var(--bd);z-index:1;position:relative}
+.stat{background:var(--bg1);padding:16px 20px;border-right:1px solid var(--bd);cursor:default;transition:.15s}
+.stat:last-child{border-right:none}
+.stat:hover{background:var(--bg2)}
+.stat-l{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx3);margin-bottom:6px;font-family:var(--font-sans)}
+.stat-v{font-size:22px;font-weight:600;color:var(--tx);line-height:1;font-family:var(--font-sans)}
+.stat-d{font-size:11px;color:var(--tx3);margin-top:3px;font-family:var(--font-sans)}
+.up{color:var(--green)}.down{color:var(--red)}.neutral{color:var(--yellow)}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:1fr 320px;gap:0;background:var(--bd);position:relative;z-index:1;min-height:80vh}
+.main-col{background:var(--bg1)}
+.side-col{background:var(--bg1);border-left:1px solid var(--bd)}
+@media(max-width:860px){.layout{grid-template-columns:1fr}.side-col{border-left:none;border-top:1px solid var(--bd)}}
+
+/* ── Sections ── */
+.sec{padding:20px;border-bottom:1px solid var(--bd)}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-title{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx3);display:flex;align-items:center;gap:8px;font-family:var(--font-sans)}
+.sec-title::before{content:'';width:3px;height:12px;background:var(--green);border-radius:2px}
+
+/* ── Services table ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--tx3);padding:7px 10px;text-align:left;border-bottom:1px solid var(--bd);font-weight:400;font-family:var(--font-sans)}
+.tbl td{padding:9px 10px;border-bottom:1px solid rgba(48,54,61,.6);vertical-align:middle}
+.tbl tbody tr{transition:.1s;cursor:pointer}
+.tbl tbody tr:hover{background:var(--bg2)}
+.tbl tbody tr:last-child td{border-bottom:none}
+.svc-name{color:var(--tx);font-weight:500;font-size:13px}
+.svc-team{font-size:11px;color:var(--tx3);margin-top:1px;font-family:var(--font-sans)}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:500;letter-spacing:.3px;border:1px solid}
+.env-prod{background:var(--green-dim);color:var(--green);border-color:rgba(63,185,80,.25)}
+.env-staging{background:var(--yellow-dim);color:var(--yellow);border-color:rgba(210,153,34,.25)}
+.env-dev{background:var(--blue-dim);color:var(--blue);border-color:rgba(88,166,255,.25)}
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-family:var(--font-sans)}
+.status-dot::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.s-healthy::before{background:var(--green);box-shadow:0 0 6px var(--green)}
+.s-degraded::before{background:var(--red);box-shadow:0 0 6px var(--red)}
+.s-canary::before{background:var(--yellow);box-shadow:0 0 6px var(--yellow);animation:pulse 1.5s infinite}
+.minibar{display:inline-block;width:70px;height:4px;border-radius:2px;background:var(--bg3);overflow:hidden;vertical-align:middle}
+.minibar-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.bar-ok{background:var(--green)}.bar-warn{background:var(--yellow)}.bar-crit{background:var(--red)}
+
+/* ── DORA grid ── */
+.dora-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden}
+.dora-cell{background:var(--bg2);padding:14px}
+.dora-cell:hover{background:var(--bg3)}
+.dora-l{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--tx3);margin-bottom:6px;font-family:var(--font-sans)}
+.dora-v{font-family:var(--font-sans);font-size:1.5rem;font-weight:600;color:var(--tx);line-height:1}
+.dora-u{font-size:11px;color:var(--tx3);margin-left:3px}
+.dora-t{font-size:11px;margin-top:4px;font-family:var(--font-sans)}
+
+/* ── Deploy feed ── */
+.dep-item{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(48,54,61,.5)}
+.dep-item:last-child{border-bottom:none}
+.dep-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;flex-shrink:0}
+.di-ok{background:var(--green-dim);color:var(--green)}
+.di-fail{background:var(--red-dim);color:var(--red)}
+.di-run{background:var(--blue-dim);color:var(--blue)}
+.dep-name{font-size:12px;color:var(--tx);font-weight:500}
+.dep-meta{font-size:11px;color:var(--tx3);font-family:var(--font-sans)}
+.dep-sha{font-size:10px;padding:2px 6px;background:var(--bg3);border:1px solid var(--bd);border-radius:3px;color:var(--tx3)}
+
+/* ── Templates ── */
+.tmpl-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;text-decoration:none;color:inherit;transition:.15s;margin-bottom:6px}
+.tmpl-card:last-child{margin-bottom:0}
+.tmpl-card:hover{border-color:var(--green);background:var(--bg3);transform:translateX(2px)}
+.tmpl-icon{width:30px;height:30px;border-radius:5px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+.ti-rest{background:var(--green-dim);color:var(--green)}
+.ti-front{background:var(--blue-dim);color:var(--blue)}
+.ti-kafka{background:var(--orange-dim);color:var(--orange)}
+.ti-db{background:var(--yellow-dim);color:var(--yellow)}
+.tmpl-name{font-size:12px;color:var(--tx);font-weight:500}
+.tmpl-desc{font-size:11px;color:var(--tx3);font-family:var(--font-sans)}
+.tmpl-arr{margin-left:auto;color:var(--tx3);transition:.15s}
+.tmpl-card:hover .tmpl-arr{color:var(--green)}
+
+/* ── Pipeline bars ── */
+.pipe-row{display:grid;grid-template-columns:100px 1fr 36px;gap:8px;align-items:center;margin-bottom:8px}
+.pipe-row:last-child{margin-bottom:0}
+.pipe-label{font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pipe-track{height:14px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.pipe-fill{height:100%;border-radius:3px;font-size:9px;color:#000;font-weight:700;display:flex;align-items:center;padding-left:5px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.pipe-pct{font-size:11px;text-align:right}
+
+/* ── Activity log ── */
+.log-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(48,54,61,.4);align-items:flex-start}
+.log-row:last-child{border-bottom:none}
+.log-time{font-size:10px;color:var(--tx3);white-space:nowrap;padding-top:1px;min-width:52px}
+.log-lvl{font-size:9px;padding:1px 5px;border-radius:2px;flex-shrink:0;margin-top:2px;letter-spacing:.3px;font-weight:500}
+.lv-ok{background:var(--green-dim);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.lv-info{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.lv-warn{background:var(--yellow-dim);color:var(--yellow);border:1px solid rgba(210,153,34,.2)}
+.lv-error{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.log-msg{color:var(--tx2);flex:1;font-size:11px;font-family:var(--font-sans)}
+
+/* ── Topology ── */
+.topo-wrap{position:relative;height:200px;overflow:hidden;border:1px solid var(--bd);border-radius:var(--r);background:var(--bg)}
+#topo{width:100%;height:100%}
+
+/* ── Terminal ── */
+.term{background:#020408;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.term-bar{background:var(--bg2);border-bottom:1px solid var(--bd);padding:7px 12px;display:flex;align-items:center;gap:6px}
+.td{width:10px;height:10px;border-radius:50%}
+.td-r{background:#ff5f57}.td-y{background:#febc2e}.td-g{background:#28c840}
+.term-ttl{font-size:11px;color:var(--tx3);margin-left:8px;font-family:var(--font-sans)}
+.term-body{padding:12px 14px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+.tl{margin-bottom:3px;font-size:12px}
+.tc-p{color:var(--green)}.tc-c{color:var(--tx)}.tc-ok{color:var(--green)}.tc-err{color:var(--red)}.tc-info{color:var(--blue)}.tc-dim{color:var(--tx3)}
+.cursor{display:inline-block;width:7px;height:12px;background:var(--green);animation:blink 1s step-end infinite;vertical-align:text-bottom;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Footer ── */
+footer{border-top:1px solid var(--bd);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--tx3);position:relative;z-index:1;flex-wrap:wrap;gap:8px;font-family:var(--font-sans)}
+footer a{color:var(--blue);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fadeUp .4s ease both}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}.d4{animation-delay:.2s}
+
+/* ── Loading state ── */
+.skeleton{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-row{height:14px;border-radius:3px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#">
+    <span class="logo-box">P1</span>
+    platform-one <span>/</span> <span style="color:var(--tx2);font-size:13px;">idp</span>
+  </a>
+  <nav>
+    <a href="#services" class="active" onclick="setTab(this)">Services</a>
+    <a href="#deploy" onclick="setTab(this)">Deploy</a>
+    <a href="#observe" onclick="setTab(this)">Observe</a>
+    <a href="http://localhost:8090" target="_blank" rel="noopener">ArgoCD ↗</a>
+    <a href="http://localhost:3000" target="_blank" rel="noopener">Grafana ↗</a>
+    <a href="http://localhost:8200" target="_blank" rel="noopener">Vault ↗</a>
+    <a href="http://localhost:9090" target="_blank" rel="noopener">Prometheus ↗</a>
+  </nav>
+  <div class="h-right">
+    <span class="cluster-pill"><span class="pulse"></span>k3d-platform-one</span>
+    <a href="#create" class="btn-sm btn-primary">+ New Service</a>
+  </div>
+</header>
+
+<!-- ── Hero ── -->
+<section class="hero fu">
+  <div class="hero-tag">Internal Developer Platform</div>
+  <h1>Zero toil.<br><em>Ship in minutes.</em></h1>
+  <p class="hero-sub">Provision prod-grade environments with a single form. Backstage templates → Crossplane → ArgoCD → live in &lt;10 min. No tickets.</p>
+  <div class="hero-actions">
+    <a href="#create" class="btn-sm btn-primary">⊕ Create Service</a>
+    <a href="#services" class="btn-sm">View Catalog</a>
+    <a href="https://github.com/YOUR_ORG/platform-one" target="_blank" rel="noopener" class="btn-sm">GitHub ↗</a>
+  </div>
+</section>
+
+<!-- ── Stats ── -->
+<div class="stats-bar fu d1" id="stats-bar">
+  <div class="stat"><div class="stat-l">Services</div><div class="stat-v" id="sv-svc">—</div><div class="stat-d">across <span id="sv-ns">—</span> namespaces</div></div>
+  <div class="stat"><div class="stat-l">Pods Running</div><div class="stat-v" id="sv-pods">—</div><div class="stat-d"><span id="sv-fail" class="down">—</span> failing</div></div>
+  <div class="stat"><div class="stat-l">Deploy Freq</div><div class="stat-v" id="sv-freq">—</div><div class="stat-d up" id="sv-freq-d">per day</div></div>
+  <div class="stat"><div class="stat-l">Lead Time</div><div class="stat-v" id="sv-lead">—</div><div class="stat-d up" id="sv-lead-d">to prod</div></div>
+  <div class="stat"><div class="stat-l">Fail Rate</div><div class="stat-v" id="sv-cfr">—</div><div class="stat-d up" id="sv-cfr-d">last 7d</div></div>
+  <div class="stat"><div class="stat-l">MTTR</div><div class="stat-v" id="sv-mttr">—</div><div class="stat-d up" id="sv-mttr-d">mean restore</div></div>
+</div>
+
+<!-- ── Main layout ── -->
+<div class="layout">
+
+  <!-- Left column -->
+  <div class="main-col">
+
+    <!-- Services catalog -->
+    <div class="sec fu d2" id="services">
+      <div class="sec-hd">
+        <div class="sec-title">Service Catalog</div>
+        <a href="#create" class="btn-sm">+ New</a>
+      </div>
+      <table class="tbl">
+        <thead><tr>
+          <th>Service</th><th>Env</th><th>Status</th><th>Version</th><th>CPU</th><th>Mem</th>
+        </tr></thead>
+        <tbody id="svc-tbody"><tr><td colspan="6" style="text-align:center;color:var(--tx3);padding:20px">
+          <div class="skel-row skeleton" style="width:60%;margin:0 auto"></div>
+        </td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Deployments -->
+    <div class="sec fu d3" id="deploy">
+      <div class="sec-hd">
+        <div class="sec-title">Deployment Feed</div>
+        <span style="font-size:11px;color:var(--tx3);font-family:var(--font-sans)">● live</span>
+      </div>
+      <div id="dep-feed"><div style="color:var(--tx3);padding:8px 0">Loading…</div></div>
+    </div>
+
+    <!-- Topology -->
+    <div class="sec fu d3" id="observe">
+      <div class="sec-hd"><div class="sec-title">Cluster Topology</div></div>
+      <div class="topo-wrap"><canvas id="topo"></canvas></div>
+    </div>
+
+    <!-- Terminal -->
+    <div class="sec fu d4">
+      <div class="sec-hd"><div class="sec-title">Bootstrap Log</div></div>
+      <div class="term">
+        <div class="term-bar">
+          <span class="td td-r"></span><span class="td td-y"></span><span class="td td-g"></span>
+          <span class="term-ttl">bash .devcontainer/bootstrap.sh</span>
+        </div>
+        <div class="term-body" id="term-body"></div>
+      </div>
+    </div>
+
+  </div><!-- /main-col -->
+
+  <!-- Right sidebar -->
+  <div class="side-col">
+
+    <!-- DORA -->
+    <div class="sec">
+      <div class="sec-hd"><div class="sec-title">DORA Metrics</div></div>
+      <div class="dora-grid" id="dora-grid">
+        <div class="dora-cell"><div class="dora-l">Deploy Freq</div><div class="dora-v">—</div></div>
+        <div class="dora-cell"><div class="dora-l">Lead Time</div><div class="dora-v">—</div></div>
+        <div class="dora-cell"><div class="dora-l">Fail Rate</div><div class="dora-v">—</div></div>
+        <div class="dora-cell"><div class="dora-l">MTTR</div><div class="dora-v">—</div></div>
+      </div>
+    </div>
+
+    <!-- Quick launch -->
+    <div class="sec" id="create">
+      <div class="sec-hd"><div class="sec-title">Quick Launch</div></div>
+      <a class="tmpl-card" href="http://localhost:8080/backstage/create" target="_blank" rel="noopener">
+        <span class="tmpl-icon ti-rest">⬡</span>
+        <div><div class="tmpl-name">REST Microservice</div><div class="tmpl-desc">Go · Postgres · ArgoCD</div></div>
+        <span class="tmpl-arr">→</span>
+      </a>
+      <a class="tmpl-card" href="http://localhost:8080/backstage/create" target="_blank" rel="noopener">
+        <span class="tmpl-icon ti-front">◈</span>
+        <div><div class="tmpl-name">Frontend App</div><div class="tmpl-desc">React · Nginx · CDN</div></div>
+        <span class="tmpl-arr">→</span>
+      </a>
+      <a class="tmpl-card" href="http://localhost:8080/backstage/create" target="_blank" rel="noopener">
+        <span class="tmpl-icon ti-kafka">⬡</span>
+        <div><div class="tmpl-name">Kafka Consumer</div><div class="tmpl-desc">Go · DLQ · OTel</div></div>
+        <span class="tmpl-arr">→</span>
+      </a>
+      <a class="tmpl-card" href="http://localhost:8080/backstage/create" target="_blank" rel="noopener">
+        <span class="tmpl-icon ti-db">◉</span>
+        <div><div class="tmpl-name">Database Claim</div><div class="tmpl-desc">Crossplane · RDS · Secrets</div></div>
+        <span class="tmpl-arr">→</span>
+      </a>
+    </div>
+
+    <!-- Pipeline health -->
+    <div class="sec">
+      <div class="sec-hd"><div class="sec-title">Pipeline Health</div></div>
+      <div id="pipe-bars"></div>
+    </div>
+
+    <!-- Activity log -->
+    <div class="sec">
+      <div class="sec-hd"><div class="sec-title">Activity Log</div></div>
+      <div id="activity"></div>
+    </div>
+
+  </div><!-- /side-col -->
+</div><!-- /layout -->
+
+<footer>
+  <span>platform-one · k3d-platform-one · <span id="ft-time"></span></span>
+  <span>
+    <a href="http://localhost:8090" target="_blank" rel="noopener">ArgoCD</a> ·
+    <a href="http://localhost:3000" target="_blank" rel="noopener">Grafana</a> ·
+    <a href="http://localhost:9090" target="_blank" rel="noopener">Prometheus</a> ·
+    <a href="http://localhost:8200" target="_blank" rel="noopener">Vault</a>
+  </span>
+</footer>
+
+<script>
+// ── Data (mock fallbacks, replaced by API responses) ─────────────────────────
+const SERVICES = [
+  {name:'payment-api',     team:'payments', env:'prod',    status:'healthy',  version:'v2.4.1',replicas:3,cpu:42,mem:61},
+  {name:'user-service',    team:'platform', env:'prod',    status:'healthy',  version:'v1.9.0',replicas:2,cpu:28,mem:44},
+  {name:'notification-svc',team:'comms',    env:'staging', status:'canary',   version:'v3.1.0',replicas:4,cpu:55,mem:72},
+  {name:'inventory-api',   team:'fulfil',   env:'prod',    status:'healthy',  version:'v1.2.3',replicas:2,cpu:19,mem:38},
+  {name:'ml-inference',    team:'ai',       env:'prod',    status:'degraded', version:'v0.8.2',replicas:1,cpu:88,mem:91},
+  {name:'event-consumer',  team:'data',     env:'prod',    status:'healthy',  version:'v2.0.0',replicas:3,cpu:31,mem:55},
+  {name:'analytics-worker',team:'data',     env:'dev',     status:'healthy',  version:'v1.0.0',replicas:1,cpu:12,mem:29},
+  {name:'auth-gateway',    team:'platform', env:'prod',    status:'healthy',  version:'v4.2.0',replicas:5,cpu:35,mem:48},
+];
+const CLUSTER = {nodes:{total:3,ready:3},namespaces:12,deployments:{total:24,healthy:23,degraded:1},pods:{running:87,pending:2,failed:0}};
+const DEPLOYS = [
+  {service:'payment-api',     env:'prod',    status:'success',duration:'3m 12s',sha:'a3f9c1d',ago:Date.now()-1800000},
+  {service:'notification-svc',env:'staging', status:'running',duration:'1m 44s',sha:'e7b2a90',ago:Date.now()-90000},
+  {service:'user-service',    env:'prod',    status:'success',duration:'2m 58s',sha:'c1d4e2f',ago:Date.now()-7200000},
+  {service:'auth-gateway',    env:'prod',    status:'success',duration:'4m 05s',sha:'9f3b7e1',ago:Date.now()-14400000},
+  {service:'ml-inference',    env:'prod',    status:'failed', duration:'1m 22s',sha:'b0a8d3c',ago:Date.now()-21600000},
+];
+const DORA = {
+  deployFrequency:{value:14.2,unit:'deploys/day',trend:8},
+  leadTime:{value:23,unit:'min',trend:-12},
+  changeFailureRate:{value:2.1,unit:'%',trend:-0.4},
+  mttr:{value:18,unit:'min',trend:-22},
+};
+
+// ── Fetch helper ──────────────────────────────────────────────────────────────
+async function api(path, fallback) {
+  try {
+    const r = await fetch(path, {signal: AbortSignal.timeout(3000)});
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch { return fallback; }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+const ago = ts => { const s = Math.floor((Date.now()-ts)/1000); if(s<60)return s+'s ago'; if(s<3600)return Math.floor(s/60)+'m ago'; return Math.floor(s/3600)+'h ago'; };
+const barCls = v => v>80?'bar-crit':v>60?'bar-warn':'bar-ok';
+
+// ── Stats ──────────────────────────────────────────────────────────────────────
+async function renderStats() {
+  const [cl,d] = await Promise.all([api('/api/cluster',CLUSTER), api('/api/dora',DORA)]);
+  $('sv-svc').textContent  = cl.deployments.total;
+  $('sv-ns').textContent   = cl.namespaces;
+  $('sv-pods').textContent = cl.pods.running;
+  $('sv-fail').textContent = cl.pods.failed;
+  $('sv-freq').textContent = d.deployFrequency.value;
+  $('sv-freq-d').textContent = '↑ '+d.deployFrequency.trend+'% this week';
+  $('sv-lead').textContent = d.leadTime.value+'m';
+  $('sv-lead-d').textContent = '↓ '+Math.abs(d.leadTime.trend)+'% improved';
+  $('sv-cfr').textContent  = d.changeFailureRate.value+'%';
+  $('sv-cfr-d').textContent = '↓ '+Math.abs(d.changeFailureRate.trend)+'% 7d';
+  $('sv-mttr').textContent = d.mttr.value+'m';
+  $('sv-mttr-d').textContent = '↓ '+Math.abs(d.mttr.trend)+'% improved';
+}
+
+// ── Services ──────────────────────────────────────────────────────────────────
+async function renderServices() {
+  const svcs = await api('/api/services', SERVICES);
+  $('svc-tbody').innerHTML = svcs.map(s => `
+    <tr onclick="window.open('http://localhost:8090/applications/${s.name}','_blank')">
+      <td><div class="svc-name">${s.name}</div><div class="svc-team">${s.team} · ${s.replicas}×</div></td>
+      <td><span class="badge env-${s.env}">${s.env}</span></td>
+      <td><span class="status-dot s-${s.status}">${s.status}</span></td>
+      <td style="color:var(--tx3);font-size:12px">${s.version}</td>
+      <td><span class="minibar"><span class="minibar-fill ${barCls(s.cpu)}" style="width:${s.cpu}%"></span></span> <span style="font-size:11px;color:var(--tx3)">${s.cpu}%</span></td>
+      <td><span class="minibar"><span class="minibar-fill ${barCls(s.mem)}" style="width:${s.mem}%"></span></span> <span style="font-size:11px;color:var(--tx3)">${s.mem}%</span></td>
+    </tr>`).join('');
+}
+
+// ── Deploys ───────────────────────────────────────────────────────────────────
+const DI = {success:{cls:'di-ok',icon:'✓'},failed:{cls:'di-fail',icon:'✗'},running:{cls:'di-run',icon:'↻'}};
+async function renderDeploys() {
+  const deps = await api('/api/deployments', DEPLOYS);
+  $('dep-feed').innerHTML = deps.map(d => `
+    <div class="dep-item">
+      <span class="dep-icon ${DI[d.status].cls}">${DI[d.status].icon}</span>
+      <div><div class="dep-name">${d.service}</div><div class="dep-meta">${d.env} · ${d.duration} · ${ago(d.ago)}</div></div>
+      <span class="dep-sha">${d.sha}</span>
+    </div>`).join('');
+}
+
+// ── DORA ──────────────────────────────────────────────────────────────────────
+async function renderDORA() {
+  const d = await api('/api/dora', DORA);
+  const cards = [
+    {l:'Deploy Freq',  v:d.deployFrequency.value,    u:' /day',  t:d.deployFrequency.trend,   good:'up'},
+    {l:'Lead Time',    v:d.leadTime.value+'m',        u:'',       t:d.leadTime.trend,           good:'down'},
+    {l:'Fail Rate',    v:d.changeFailureRate.value+'%',u:'',      t:d.changeFailureRate.trend,  good:'down'},
+    {l:'MTTR',         v:d.mttr.value+'m',            u:'',       t:d.mttr.trend,               good:'down'},
+  ];
+  $('dora-grid').innerHTML = cards.map(c => {
+    const good = (c.good==='up'&&c.t>0)||(c.good==='down'&&c.t<0);
+    const cls = good?'up':'down';
+    return `<div class="dora-cell">
+      <div class="dora-l">${c.l}</div>
+      <div class="dora-v">${c.v}<span class="dora-u">${c.u}</span></div>
+      <div class="dora-t ${cls}">${c.t>0?'↑':'↓'} ${Math.abs(c.t)}${String(c.t).includes('.')?'':''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Pipeline bars ─────────────────────────────────────────────────────────────
+function renderPipeline() {
+  const data = [
+    {name:'payment-api',   pct:98, col:'var(--green)'},
+    {name:'user-service',  pct:100,col:'var(--green)'},
+    {name:'notification',  pct:72, col:'var(--yellow)'},
+    {name:'ml-inference',  pct:45, col:'var(--red)'},
+    {name:'auth-gateway',  pct:99, col:'var(--green)'},
+    {name:'event-consumer',pct:94, col:'var(--green)'},
+  ];
+  $('pipe-bars').innerHTML = data.map(d => `
+    <div class="pipe-row">
+      <div class="pipe-label">${d.name}</div>
+      <div class="pipe-track"><div class="pipe-fill" style="width:${d.pct}%;background:${d.col}"></div></div>
+      <div class="pipe-pct" style="color:${d.col}">${d.pct}%</div>
+    </div>`).join('');
+}
+
+// ── Activity log ──────────────────────────────────────────────────────────────
+function renderActivity() {
+  const logs = [
+    {t:'now',    lv:'ok',   msg:'ArgoCD sync: payment-api → prod ✓'},
+    {t:'1m',     lv:'info', msg:'Kyverno: otel-sidecar injected into notification-svc'},
+    {t:'2m',     lv:'warn', msg:'ml-inference CPU >80% — HPA scaling up'},
+    {t:'5m',     lv:'info', msg:'Crossplane: AppEnvironment analytics-dev provisioned'},
+    {t:'8m',     lv:'error',msg:'ml-inference: p99 latency exceeded SLO (820ms)'},
+    {t:'12m',    lv:'ok',   msg:'Cosign: auth-gateway@sha256:9f3b signed'},
+    {t:'18m',    lv:'info', msg:'Vault: secret rotation complete for payment-api'},
+  ];
+  $('activity').innerHTML = logs.map(l => `
+    <div class="log-row">
+      <span class="log-time">${l.t}</span>
+      <span class="log-lvl lv-${l.lv}">${l.lv.toUpperCase()}</span>
+      <span class="log-msg">${l.msg}</span>
+    </div>`).join('');
+}
+
+// ── Topology canvas ───────────────────────────────────────────────────────────
+function drawTopo() {
+  const canvas = $('topo');
+  if (!canvas) return;
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const nodes = [
+    {id:'backstage', l:'Backstage', x:.10,y:.22,c:'#58a6ff',r:20},
+    {id:'argocd',    l:'ArgoCD',   x:.35,y:.18,c:'#3fb950',r:19},
+    {id:'kyverno',   l:'Kyverno',  x:.62,y:.18,c:'#d29922',r:17},
+    {id:'crossplane',l:'Crossplane',x:.35,y:.72,c:'#f0883e',r:19},
+    {id:'prometheus',l:'Prometheus',x:.62,y:.72,c:'#f85149',r:17},
+    {id:'vault',     l:'Vault',    x:.88,y:.45,c:'#bc8cff',r:17},
+    {id:'k3d',       l:'k3d',      x:.50,y:.45,c:'#e6edf3',r:26},
+  ];
+  const edges=[['backstage','argocd'],['backstage','crossplane'],['argocd','k3d'],['kyverno','k3d'],['crossplane','k3d'],['prometheus','k3d'],['vault','kyverno'],['vault','crossplane'],['argocd','kyverno']];
+  const nm = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const px=n=>n.x*W, py=n=>n.y*H;
+  edges.forEach(([a,b])=>{
+    const na=nm[a],nb=nm[b];
+    const g=ctx.createLinearGradient(px(na),py(na),px(nb),py(nb));
+    g.addColorStop(0,na.c+'50'); g.addColorStop(1,nb.c+'50');
+    ctx.strokeStyle=g; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(px(na),py(na)); ctx.lineTo(px(nb),py(nb)); ctx.stroke();
+  });
+  nodes.forEach(n=>{
+    const x=px(n),y=py(n);
+    ctx.beginPath(); ctx.arc(x,y,n.r+7,0,Math.PI*2);
+    ctx.fillStyle=n.c+'18'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,n.r,0,Math.PI*2);
+    ctx.fillStyle='#0d1117'; ctx.fill();
+    ctx.strokeStyle=n.c+'cc'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=n.c; ctx.font='9px IBM Plex Mono,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(n.l.slice(0,2).toUpperCase(),x,y);
+    ctx.fillText(n.l,x,y+n.r+11);
+  });
+}
+
+// ── Terminal animation ────────────────────────────────────────────────────────
+const TERM = [
+  {c:'tc-dim',t:'# platform-one bootstrap — starting'},
+  {c:'tc-p',  t:'$ k3d cluster create platform-one --agents 2'},
+  {c:'tc-ok', t:'INFO Created network k3d-platform-one'},
+  {c:'tc-ok', t:'INFO Cluster platform-one created!'},
+  {c:'tc-p',  t:'$ helm install argocd argo/argo-cd -n argocd'},
+  {c:'tc-info',t:'Release "argocd" installed. Happy Helming!'},
+  {c:'tc-p',  t:'$ helm install kyverno kyverno/kyverno -n kyverno'},
+  {c:'tc-info',t:'Release "kyverno" installed.'},
+  {c:'tc-p',  t:'$ helm install crossplane crossplane/crossplane -n crossplane-system'},
+  {c:'tc-info',t:'Release "crossplane" installed.'},
+  {c:'tc-p',  t:'$ kubectl apply -f policies/kyverno/policy-bundle.yaml'},
+  {c:'tc-ok', t:'clusterpolicy.kyverno.io/require-labels configured'},
+  {c:'tc-ok', t:'clusterpolicy.kyverno.io/inject-otel-sidecar configured'},
+  {c:'tc-ok', t:'clusterpolicy.kyverno.io/verify-image-signatures configured'},
+  {c:'tc-p',  t:'$ kubectl apply -f infrastructure/argocd/apps/root-app.yaml'},
+  {c:'tc-ok', t:'application.argoproj.io/root-app created'},
+  {c:'tc-p',  t:'$ bash scripts/port-forward.sh start'},
+  {c:'tc-ok', t:'✔ portal     → http://localhost:8080'},
+  {c:'tc-ok', t:'✔ argocd     → http://localhost:8090'},
+  {c:'tc-ok', t:'✔ grafana    → http://localhost:3000'},
+  {c:'tc-ok', t:'✔ prometheus → http://localhost:9090'},
+  {c:'tc-ok', t:'✔ vault      → http://localhost:8200'},
+  {c:'tc-dim', t:''},
+  {c:'tc-ok', t:'✅ platform-one is ready — happy shipping!'},
+];
+let ti=0;
+function typeTerm() {
+  const b=$('term-body');
+  if(ti>=TERM.length){b.innerHTML+=`<div class="tl"><span class="tc-p">$ </span><span class="cursor"></span></div>`;return;}
+  const l=TERM[ti++];
+  const d=document.createElement('div');
+  d.className='tl'; d.innerHTML=`<span class="${l.c}">${l.t}</span>`;
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
+  setTimeout(typeTerm, l.c==='tc-p'?300:60);
+}
+
+// ── Nav tab ────────────────────────────────────────────────────────────────────
+function setTab(el) {
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Clock ──────────────────────────────────────────────────────────────────────
+function tick() {
+  $('ft-time').textContent = new Date().toUTCString().replace(' GMT',' UTC');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(async function boot() {
+  await renderStats();
+  await renderServices();
+  await renderDeploys();
+  await renderDORA();
+  renderPipeline();
+  renderActivity();
+  drawTopo();
+  tick();
+  setTimeout(typeTerm, 600);
+  setInterval(tick, 1000);
+  setInterval(async () => { await renderStats(); await renderServices(); await renderDeploys(); }, 30000);
+  window.addEventListener('resize', drawTopo);
+})();
+</script>
+</body>
+</html>

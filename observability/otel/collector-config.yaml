@@ -1,0 +1,129 @@
+# OpenTelemetry Collector configuration
+# Applied as a ConfigMap used by the OTel Operator's OpenTelemetryCollector CR
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: otel-collector
+    team: platform
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: otel-collector
+              static_configs:
+                - targets: [localhost:8888]
+
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      memory_limiter:
+        limit_mib: 400
+        spike_limit_mib: 100
+      resource:
+        attributes:
+          - action: insert
+            key: cluster
+            value: platform-one
+
+    exporters:
+      prometheusremotewrite:
+        endpoint: http://kube-prometheus-kube-prome-prometheus.monitoring.svc:9090/api/v1/write
+        tls:
+          insecure: true
+      otlp/tempo:
+        endpoint: http://tempo.monitoring.svc:4317
+        tls:
+          insecure: true
+      loki:
+        endpoint: http://loki.monitoring.svc:3100/loki/api/v1/push
+        labels:
+          resource:
+            service.name: service_name
+            k8s.namespace.name: namespace
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, batch, resource]
+          exporters: [prometheusremotewrite]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch, resource]
+          exporters: [otlp/tempo]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch, resource]
+          exporters: [loki]
+---
+# OpenTelemetryCollector CR — managed by the OTel Operator
+# Creates a Deployment-mode collector in the monitoring namespace
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: platform-collector
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: platform-collector
+    team: platform
+spec:
+  mode: deployment
+  replicas: 1
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        timeout: 1s
+      memory_limiter:
+        limit_mib: 400
+        spike_limit_mib: 100
+    exporters:
+      prometheusremotewrite:
+        endpoint: http://kube-prometheus-kube-prome-prometheus.monitoring.svc:9090/api/v1/write
+        tls:
+          insecure: true
+      otlp/tempo:
+        endpoint: http://tempo.monitoring.svc:4317
+        tls:
+          insecure: true
+      loki:
+        endpoint: http://loki.monitoring.svc:3100/loki/api/v1/push
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [prometheusremotewrite]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/tempo]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [loki]

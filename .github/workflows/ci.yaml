@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  lint:
+    name: Lint & Policy Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install conftest
+        run: |
+          CVER=$(curl -sf https://api.github.com/repos/open-policy-agent/conftest/releases/latest \
+            | grep '"tag_name"' | head -1 | cut -d'"' -f4 | tr -d v)
+          curl -sSLo /tmp/conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CVER}/conftest_${CVER}_Linux_x86_64.tar.gz"
+          tar -xzf /tmp/conftest.tar.gz -C /usr/local/bin conftest
+
+      - name: Conftest policy validation
+        run: |
+          if ls apps/*/k8s/*.yaml 2>/dev/null; then
+            conftest test apps/*/k8s/*.yaml --policy policies/rego/ --all-namespaces
+          else
+            echo "No app manifests to test"
+          fi
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "0"           # warn only in CI, enforce in prod
+
+      - name: Checkov IaC scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: kubernetes
+          soft_fail: true
+
+  build:
+    name: Build & Push
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    strategy:
+      matrix:
+        app: [microservice, frontend, kafka-consumer]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if app has Dockerfile
+        id: check
+        run: |
+          if [ -f "apps/${{ matrix.app }}/Dockerfile" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        if: steps.check.outputs.exists == 'true'
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/${{ matrix.app }}
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Install cosign
+        if: steps.check.outputs.exists == 'true' && github.event_name == 'push'
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image
+        if: steps.check.outputs.exists == 'true' && github.event_name == 'push'
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"
+
+      - name: Update k8s image tag
+        if: steps.check.outputs.exists == 'true' && github.event_name == 'push'
+        run: |
+          IMG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}:${{ github.sha }}"
+          MANIFEST="apps/${{ matrix.app }}/k8s/deployment.yaml"
+          if [ -f "$MANIFEST" ]; then
+            sed -i "s|image: .*${{ matrix.app }}:.*|image: ${IMG}|g" "$MANIFEST"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "$MANIFEST"
+            git diff --staged --quiet || \
+              git commit -m "chore: bump ${{ matrix.app }} to ${{ github.sha }} [skip ci]"
+            git push
+          fi

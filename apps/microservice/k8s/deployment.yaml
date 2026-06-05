@@ -1,0 +1,111 @@
+# Standard Deployment for local dev / staging.
+# For production canary deployments, use rollout.yaml instead (Argo Rollouts).
+# Do NOT apply both deployment.yaml and rollout.yaml to the same namespace.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microservice
+  namespace: microservice
+  labels:
+    app.kubernetes.io/name: microservice
+    app.kubernetes.io/version: "1.0.0"
+    team: platform
+    cost-center: eng-001
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: microservice
+  template:
+    metadata:
+      labels:
+        app: microservice
+        app.kubernetes.io/name: microservice
+        team: platform
+        cost-center: eng-001
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: microservice
+          image: ghcr.io/Gi-v/platform-one/microservice:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: PORT
+              value: "8080"
+            - name: SERVICE_NAME
+              value: "microservice"
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: microservice-db-secret
+                  key: host
+                  optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: microservice
+  namespace: microservice
+  labels:
+    app.kubernetes.io/name: microservice
+    team: platform
+spec:
+  selector:
+    app: microservice
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservice
+  namespace: microservice
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /api/microservice
+            pathType: Prefix
+            backend:
+              service:
+                name: microservice
+                port:
+                  number: 80

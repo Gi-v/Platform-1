@@ -1,0 +1,85 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: kafka-consumer
+  title: Kafka Consumer Service
+  description: Scaffolds a Kafka consumer with consumer group management, dead-letter topic, and observability.
+  tags: [backend, kafka, streaming]
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Consumer Info
+      required: [name, team, topicName]
+      properties:
+        name:
+          title: Service Name
+          type: string
+        team:
+          title: Team
+          type: string
+        topicName:
+          title: Kafka Topic to Consume
+          type: string
+        consumerGroup:
+          title: Consumer Group ID
+          type: string
+        dlqEnabled:
+          title: Enable Dead-Letter Queue?
+          type: boolean
+          default: true
+        repoUrl:
+          title: GitHub Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts: [github.com]
+
+  steps:
+    - id: fetch-template
+      name: Fetch Skeleton
+      action: fetch:template
+      input:
+        url: ./kafka-skeleton
+        values:
+          name: ${{ parameters.name }}
+          team: ${{ parameters.team }}
+          topicName: ${{ parameters.topicName }}
+          consumerGroup: ${{ parameters.consumerGroup }}
+          dlqEnabled: ${{ parameters.dlqEnabled }}
+
+    - id: publish
+      name: Create GitHub Repo
+      action: publish:github
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: private
+
+    - id: create-argocd-app
+      name: Register ArgoCD Application
+      action: argocd:create-application
+      input:
+        appName: ${{ parameters.name }}
+        argoInstance: main
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: k8s
+        namespace: ${{ parameters.name }}
+        syncPolicy: automated
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

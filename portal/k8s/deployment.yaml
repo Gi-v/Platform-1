@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-portal
+  labels:
+    app.kubernetes.io/managed-by: platform-one
+    team: platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platform-portal
+  namespace: platform-portal
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-portal-reader
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods, namespaces, services]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    resources: [applications, rollouts]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platform-portal-reader
+subjects:
+  - kind: ServiceAccount
+    name: platform-portal
+    namespace: platform-portal
+roleRef:
+  kind: ClusterRole
+  name: platform-portal-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-portal
+  namespace: platform-portal
+  labels:
+    app.kubernetes.io/name: platform-portal
+    team: platform
+    cost-center: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: platform-portal
+  template:
+    metadata:
+      labels:
+        app: platform-portal
+        app.kubernetes.io/name: platform-portal
+        team: platform
+        cost-center: platform
+    spec:
+      serviceAccountName: platform-portal
+      containers:
+        - name: portal
+          # Uses node:20-alpine with source mounted via ConfigMaps.
+          # No npm install needed - server.js has zero dependencies.
+          image: node:20-alpine
+          command: [node, /portal/server.js]
+          ports:
+            - containerPort: 3030
+              name: http
+          env:
+            - name: PORT
+              value: "3030"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3030
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3030
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          volumeMounts:
+            - name: portal-src
+              mountPath: /portal/server.js
+              subPath: server.js
+              readOnly: true
+            - name: portal-public
+              mountPath: /portal/public
+              readOnly: true
+      volumes:
+        - name: portal-src
+          configMap:
+            name: platform-portal-src
+        - name: portal-public
+          configMap:
+            name: platform-portal-public
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-portal
+  namespace: platform-portal
+spec:
+  selector:
+    app: platform-portal
+  ports:
+    - port: 80
+      targetPort: 3030
+      name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-portal
+  namespace: platform-portal
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: platform-portal
+                port:
+                  number: 80

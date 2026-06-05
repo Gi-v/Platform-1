@@ -1,0 +1,114 @@
+# ── 1. Require standard labels ───────────────────────────────────────────────
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-labels
+      match:
+        resources:
+          kinds: [Deployment, StatefulSet, DaemonSet]
+      validate:
+        message: "Labels app.kubernetes.io/name, team, and cost-center are required."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+              team: "?*"
+              cost-center: "?*"
+---
+# ── 2. Restrict image registries ─────────────────────────────────────────────
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+spec:
+  validationFailureAction: Audit
+  rules:
+    - name: allowed-registries
+      match:
+        resources:
+          kinds: [Pod]
+      validate:
+        message: "Images must come from ghcr.io or your-ecr-account.dkr.ecr.us-east-1.amazonaws.com"
+        pattern:
+          spec:
+            containers:
+              - image: "ghcr.io/* | your-ecr-account.dkr.ecr.us-east-1.amazonaws.com/*"
+---
+# ── 3. Require resource limits ───────────────────────────────────────────────
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-limits
+      match:
+        resources:
+          kinds: [Pod]
+      validate:
+        message: "CPU and memory limits are required on all containers."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+---
+# ── 4. Inject OTel sidecar (mutation) ────────────────────────────────────────
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-otel-sidecar
+spec:
+  rules:
+    - name: inject-otel-env
+      match:
+        resources:
+          kinds: [Pod]
+          namespaceSelector:
+            matchLabels:
+              otel-injection: enabled
+      mutate:
+        patchStrategicMerge:
+          spec:
+            containers:
+              - name: "(app|server|consumer|worker|api|service)"
+                env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: "http://platform-collector.monitoring.svc:4317"
+                  - name: OTEL_SERVICE_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.labels['app.kubernetes.io/name']
+                  - name: OTEL_RESOURCE_ATTRIBUTES
+                    value: "k8s.namespace.name=$(metadata.namespace)"
+---
+# ── 5. Verify image signatures (cosign) ──────────────────────────────────────
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+spec:
+  validationFailureAction: Audit
+  rules:
+    - name: verify-cosign
+      match:
+        resources:
+          kinds: [Pod]
+          namespaceSelector:
+            matchLabels:
+              signature-verification: enabled
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/Gi-v/*"
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/Gi-v/*"
+                    issuer: "https://token.actions.githubusercontent.com"

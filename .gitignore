@@ -1,0 +1,59 @@
+# Go
+*/vendor/
+*.exe
+*.test
+*/bin/
+go.work.sum
+
+# Node
+node_modules/
+npm-debug.log*
+portal/dist/
+.npm/
+
+# Docker
+.docker/
+
+# Terraform / OpenTofu
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Secrets — never commit these
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+.env
+.env.*
+!.env.example
+*-secret.yaml
+*-secrets.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# k3d / kubeconfig
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
+
+# Logs
+*.log
+/tmp/
+
+# Build artefacts
+dist/
+build/
+out/

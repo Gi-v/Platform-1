@@ -1,0 +1,125 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: rest-microservice
+  title: REST Microservice
+  description: Scaffolds a production-ready REST API with CI, ArgoCD app, namespace, and AppEnvironment claim.
+  tags: [backend, rest, golang]
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Service Info
+      required: [name, team, costCenter]
+      properties:
+        name:
+          title: Service Name
+          type: string
+          pattern: "^[a-z][a-z0-9-]{2,30}$"
+        description:
+          title: Description
+          type: string
+        team:
+          title: Team
+          type: string
+        costCenter:
+          title: Cost Center
+          type: string
+
+    - title: Infrastructure
+      properties:
+        environment:
+          title: Target Environment
+          type: string
+          enum: [dev, staging, prod]
+          default: dev
+        enableDatabase:
+          title: Provision RDS PostgreSQL?
+          type: boolean
+          default: true
+        enableCache:
+          title: Provision ElastiCache Redis?
+          type: boolean
+          default: false
+        dbInstanceClass:
+          title: DB Instance Class
+          type: string
+          default: db.t3.micro
+
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: GitHub Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts: [github.com]
+
+  steps:
+    - id: fetch-template
+      name: Fetch Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          team: ${{ parameters.team }}
+          costCenter: ${{ parameters.costCenter }}
+          environment: ${{ parameters.environment }}
+
+    - id: publish
+      name: Create GitHub Repo
+      action: publish:github
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: private
+
+    - id: create-argocd-app
+      name: Register ArgoCD Application
+      action: argocd:create-application
+      input:
+        appName: ${{ parameters.name }}
+        argoInstance: main
+        projectName: default
+        repoUrl: ${{ steps.publish.output.remoteUrl }}
+        path: k8s
+        namespace: ${{ parameters.name }}
+        syncPolicy: automated
+
+    - id: create-app-environment
+      name: Provision AppEnvironment via Crossplane
+      action: kubernetes:apply
+      input:
+        manifest:
+          apiVersion: platform.example.com/v1alpha1
+          kind: AppEnvironment
+          metadata:
+            name: ${{ parameters.name }}
+            namespace: ${{ parameters.name }}
+          spec:
+            parameters:
+              appName: ${{ parameters.name }}
+              environment: ${{ parameters.environment }}
+              team: ${{ parameters.team }}
+              enableCache: ${{ parameters.enableCache }}
+              dbInstanceClass: ${{ parameters.dbInstanceClass }}
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: ArgoCD App
+        url: https://argocd.example.com/applications/${{ parameters.name }}
+      - title: Open in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

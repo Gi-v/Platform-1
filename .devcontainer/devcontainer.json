@@ -1,0 +1,35 @@
+{
+  "name": "platform-one",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+      "version": "latest",
+      "helm": "latest",
+      "minikube": "none"
+    },
+    "ghcr.io/devcontainers/features/go:1": { "version": "1.22" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh 2>&1 | tee /tmp/bootstrap.log",
+  "forwardPorts": [8080, 8200, 9090, 3000, 8443, 2746, 8888, 4317, 4318],
+  "portsAttributes": {
+    "8080":  { "label": "Platform Portal / ArgoCD", "onAutoForward": "notify" },
+    "3000":  { "label": "Grafana",                  "onAutoForward": "silent" },
+    "9090":  { "label": "Prometheus",               "onAutoForward": "silent" },
+    "8200":  { "label": "Vault",                    "onAutoForward": "silent" },
+    "2746":  { "label": "Argo Workflows",           "onAutoForward": "silent" },
+    "4317":  { "label": "OTel gRPC",                "onAutoForward": "silent" },
+    "4318":  { "label": "OTel HTTP",                "onAutoForward": "silent" }
+  },
+  "remoteUser": "root",
+  "mounts": [
+    "source=platform-one-kube,target=/root/.kube,type=volume"
+  ]
+}

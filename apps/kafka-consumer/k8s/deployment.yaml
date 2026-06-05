@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka-consumer
+  labels:
+    app.kubernetes.io/managed-by: platform-one
+    otel-injection: enabled
+    team: platform
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: kafka-consumer
+  labels:
+    app.kubernetes.io/name: kafka-consumer
+    team: platform
+    cost-center: eng-001
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+        app.kubernetes.io/name: kafka-consumer
+        team: platform
+        cost-center: eng-001
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: kafka-consumer
+          image: ghcr.io/Gi-v/platform-one/kafka-consumer:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-consumer-config
+                  key: brokers
+            - name: KAFKA_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-consumer-config
+                  key: topic
+            - name: KAFKA_CONSUMER_GROUP
+              value: platform-consumer
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-consumer-config
+  namespace: kafka-consumer
+data:
+  brokers: "kafka.kafka.svc:9092"
+  topic: "platform-events"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-consumer
+  namespace: kafka-consumer
+spec:
+  selector:
+    app: kafka-consumer
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http

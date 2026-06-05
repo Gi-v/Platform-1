@@ -1,0 +1,96 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: appenvironment-aws
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: XAppEnvironment
+  resources:
+    # ── Namespace ────────────────────────────────────────────────────────────
+    - name: namespace
+      base:
+        apiVersion: kubernetes.crossplane.io/v1alpha1
+        kind: Object
+        spec:
+          forProvider:
+            manifest:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                labels:
+                  managed-by: crossplane
+      patches:
+        - fromFieldPath: spec.parameters.appName
+          toFieldPath: spec.forProvider.manifest.metadata.name
+
+    # ── RDS ──────────────────────────────────────────────────────────────────
+    - name: rds-instance
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            engine: postgres
+            engineVersion: "15"
+            skipFinalSnapshot: true
+            publiclyAccessible: false
+            allocatedStorage: 20
+            username: appuser
+            passwordSecretRef:
+              namespace: crossplane-system
+              key: password
+      patches:
+        - fromFieldPath: spec.parameters.dbInstanceClass
+          toFieldPath: spec.forProvider.instanceClass
+        - fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.parameters.appName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-db"
+
+    # ── S3 Bucket ─────────────────────────────────────────────────────────────
+    - name: s3-bucket
+      base:
+        apiVersion: s3.aws.upbound.io/v1beta1
+        kind: Bucket
+        spec:
+          forProvider:
+            serverSideEncryptionConfiguration:
+              - rule:
+                  - applyServerSideEncryptionByDefault:
+                      - sseAlgorithm: AES256
+      patches:
+        - fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.parameters.appName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-assets"
+
+    # ── ElastiCache (conditional) ─────────────────────────────────────────────
+    - name: elasticache
+      base:
+        apiVersion: elasticache.aws.upbound.io/v1beta1
+        kind: Cluster
+        spec:
+          forProvider:
+            engine: redis
+            nodeType: cache.t3.micro
+            numCacheNodes: 1
+      patches:
+        - fromFieldPath: spec.parameters.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.parameters.appName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cache"
