@@ -94,7 +94,7 @@ make vault-setup
 
 ---
 
-## 🖥️ UIs & access
+## 🖥️ UIs & access .
 
 | Service | URL | Credentials |
 |---|---|---|
